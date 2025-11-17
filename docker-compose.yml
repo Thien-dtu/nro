@@ -1,0 +1,128 @@
+services:
+
+  nro-mysql:
+
+    image: mysql:8.0
+
+    user: "1000:1000"
+
+    container_name: nro-mysql
+
+    environment:
+
+      - MYSQL_ROOT_PASSWORD=${NRO_MYSQL_ROOT_PASSWORD}
+
+      - MYSQL_DATABASE=nro
+
+      - MYSQL_USER=nro_user
+
+      - MYSQL_PASSWORD=${NRO_MYSQL_PASSWORD}
+
+      - PUID=${PUID}
+
+      - PGID=${PGID}
+
+    volumes:
+
+      - ./data/nro-mysql:/var/lib/mysql
+
+      - ./sql:/docker-entrypoint-initdb.d
+
+    restart: unless-stopped
+
+    networks:
+
+      - selfnet
+
+    healthcheck:
+
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "nro_user", "-p${NRO_MYSQL_PASSWORD}"]
+
+      interval: 10s
+
+      timeout: 5s
+
+      retries: 5
+
+    deploy:
+
+      resources:
+
+        limits:
+
+          cpus: '0.50'
+
+          memory: 512M
+
+ 
+
+  nro-server:
+
+    build: .
+
+    user: "${PUID}:${PGID}"
+
+    container_name: nro-server
+
+    environment:
+
+      - DB_HOST=nro-mysql
+
+      - DB_PORT=3306
+
+      - DB_USER=nro_user
+
+      - DB_PASSWORD=${NRO_MYSQL_PASSWORD}
+
+      - DB_NAME=nro
+
+      - PUID=${PUID}
+
+      - PGID=${PGID}
+
+      - TZ=${TZ}
+
+    volumes:
+
+      - ./data/nro-server/NRO-Server:/app/NRO-Server
+
+      - ./data/nro-server/data:/app/data
+
+    stdin_open: true
+
+    tty: true
+
+    depends_on:
+
+      nro-mysql:
+
+        condition: service_healthy
+    ports:
+
+      - "14445:14445"  # Main game server port
+
+      - "14444:14444"  # Alternative port
+
+    restart: unless-stopped
+
+    networks:
+
+      - selfnet
+
+    deploy:
+
+      resources:
+
+        limits:
+
+          cpus: '1.0'
+
+          memory: 1024M
+
+ 
+
+networks:
+
+  selfnet:
+
+    external: true
